@@ -1,0 +1,16 @@
+{
+  "name": "bph-richmenu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backpackers Hostel LINE OA rich menu and Apps Script deployment package.",
+  "scripts": {
+    "clasp:login": "clasp login",
+    "clasp:push": "clasp push",
+    "clasp:open": "clasp open",
+    "richmenu:create": "bash scripts/line-rich-menu-create.sh",
+    "richmenu:delete-all": "bash scripts/line-rich-menu-delete-all.sh"
+  },
+  "devDependencies": {
+    "@google/clasp": "latest"
+  }
+}
