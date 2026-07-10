@@ -1,0 +1,39 @@
+name: Generate BPH Rich Menu Artwork
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tools/generate_richmenu_art.py'
+      - 'richmenu/bph-rich-menu-area-map.json'
+      - '.github/workflows/generate-richmenu.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install image dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+          python -m pip install --upgrade pip pillow
+      - name: Generate rich menu PNG
+        run: python tools/generate_richmenu_art.py
+      - name: Commit generated PNG
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add richmenu/bph-rich-menu-main-2500x1686.png
+          if git diff --cached --quiet; then
+            echo "No generated image change."
+          else
+            git commit -m "assets: generate BPH rich menu image"
+            git push
+          fi
