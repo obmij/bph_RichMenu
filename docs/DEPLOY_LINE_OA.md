@@ -2,6 +2,8 @@
 
 本 repo 專門放 Backpackers Hostel / BPH 的 LINE OA Rich Menu、Google Apps Script 程式與部署指令。網站內容請留在 `bph` repo；LINE OA 相關程式集中在 `bph_RichMenu`。
 
+> 重點：這不是本機安裝或測試環境。正式來源在 GitHub，正式部署目標是 LINE OA 與 Google Apps Script。本機 terminal 指令只作為備援或管理工具。
+
 ## 0. 目錄結構
 
 ```txt
@@ -17,10 +19,10 @@ bph_RichMenu/
 │   ├── bph-rich-menu-main-2500x1686.png
 │   └── bph-rich-menu-area-map.json
 ├── scripts/
-│   ├── line-rich-menu-create.sh
-│   └── line-rich-menu-delete-all.sh
+│   ├── line-rich-menu-create.sh      # 備援：terminal 直接部署 rich menu
+│   └── line-rich-menu-delete-all.sh  # 備援：清除 API 建立的 rich menu
 ├── tools/
-│   └── generate_richmenu_art.py
+│   └── generate_richmenu_art.py      # 由 GitHub Actions 執行產圖
 └── docs/
     ├── DEPLOY_LINE_OA.md
     └── RICH_MENU_DESIGN.md
@@ -38,55 +40,24 @@ bph_RichMenu/
 
 > 注意：本 repo 的 rich menu 部署可直接用 Messaging API 完成。Webhook 放在 Apps Script 僅作輕量回覆與測試；Apps Script Web App 無法完整讀取 LINE request headers，因此正式會員資料、金流或高安全性 webhook 建議改放 Cloud Run / Cloud Functions。
 
-## 2. 產生 Rich Menu 圖
+## 2. 不用本機環境的 GitHub-first 部署
 
-```bash
-git clone https://github.com/obmij/bph_RichMenu.git
-cd bph_RichMenu
-python3 -m pip install pillow
-python3 tools/generate_richmenu_art.py
-ls -lh richmenu/bph-rich-menu-main-2500x1686.png
-```
+這是建議路線：直接使用 GitHub repo 內的 Apps Script 程式與已產生的 rich menu 圖，不建立任何本機測試環境。
 
-確認 PNG 低於 1 MB。
+### 2.1 建立 Google Apps Script 專案
 
-## 3. 安裝與登入 clasp
+1. 進入 Google Apps Script。
+2. 建立新專案，命名為 `BPH Rich Menu`。
+3. 在 Apps Script 專案內建立與 GitHub `src/` 相同檔案：
+   - `Code.gs`
+   - `BphConfig.gs`
+   - `LineApi.gs`
+   - `RichMenuSetup.gs`
+   - `Webhook.gs`
+   - `appsscript.json`
+4. 將 GitHub `src/` 內各檔內容複製到 Apps Script 專案。
 
-```bash
-npm install
-npx clasp login
-```
-
-建立新的 Apps Script 專案：
-
-```bash
-npx clasp create --type standalone --title "BPH Rich Menu"
-```
-
-如果你已經有 Apps Script 專案，改用：
-
-```bash
-cp .clasp.json.example .clasp.json
-# 編輯 .clasp.json，填入既有 Apps Script ID
-```
-
-`.clasp.json` 應類似：
-
-```json
-{
-  "scriptId": "YOUR_SCRIPT_ID",
-  "rootDir": "src"
-}
-```
-
-推送 Apps Script：
-
-```bash
-npx clasp push
-npx clasp open
-```
-
-## 4. 設定 Apps Script Properties
+### 2.2 設定 Apps Script Properties
 
 在 Apps Script 編輯器：
 
@@ -100,9 +71,7 @@ LINE_CHANNEL_SECRET=你的 Channel secret
 BPH_RICH_MENU_IMAGE_URL=https://raw.githubusercontent.com/obmij/bph_RichMenu/main/richmenu/bph-rich-menu-main-2500x1686.png
 ```
 
-`BPH_RICH_MENU_IMAGE_URL` 可省略；程式預設會使用 GitHub raw PNG。若 PNG 尚未由 GitHub Actions 產生，請先在本機產圖並推上 repo，或改放一個公開可讀取的 HTTPS PNG URL。
-
-## 5. 用 Apps Script 部署 Rich Menu
+### 2.3 執行 Rich Menu 部署
 
 在 Apps Script 編輯器上方選擇函式：
 
@@ -120,13 +89,33 @@ BPH rich menu deployed: richmenu-xxxxxxxxxxxxxxxx
 
 1. 驗證 rich menu JSON。
 2. 建立 rich menu object。
-3. 上傳圖片。
-4. 設成所有好友的 default rich menu。
-5. 建立或更新 alias：`bph-youth-hostel-2026`。
+3. 從 GitHub raw URL 下載正式 rich menu PNG。
+4. 上傳圖片到 LINE。
+5. 設成所有好友的 default rich menu。
+6. 建立或更新 alias：`bph-youth-hostel-2026`。
 
-## 6. 用終端機 curl 部署 Rich Menu
+## 3. 部署 Apps Script Web App Webhook
 
-也可以完全不用 Apps Script，直接用 LINE Messaging API：
+在 Apps Script 編輯器：
+
+1. 點「部署」→「新增部署」。
+2. 類型選「網頁應用程式」。
+3. Execute as：選 `Me`。
+4. Who has access：選 `Anyone`。
+5. 部署後複製 Web app URL。
+6. 到 LINE Developers Console → Messaging API → Webhook settings。
+7. Webhook URL 貼上 Web app URL。
+8. 開啟 `Use webhook`。
+9. 點 `Verify` 測試。
+
+Webhook 目前支援：
+
+- `follow`：新好友加入時回覆歡迎訊息。
+- 使用者輸入 `menu`、`選單`、`rich menu`：回覆如何打開選單。
+
+## 4. 備援：用終端機 curl 部署 Rich Menu
+
+這不是本機測試環境，只是直接從 terminal 呼叫 LINE Messaging API。只有在你不想用 Apps Script 執行部署時才需要。
 
 ```bash
 export LINE_CHANNEL_ACCESS_TOKEN='你的 Channel access token'
@@ -152,26 +141,51 @@ export LINE_CHANNEL_ACCESS_TOKEN='你的 Channel access token'
 bash scripts/line-rich-menu-delete-all.sh
 ```
 
-## 7. 部署 Apps Script Web App Webhook
+## 5. 備援：用 clasp 同步 Apps Script
 
-在 Apps Script 編輯器：
+只有當你要用 CLI 管理 Apps Script 原始碼時才需要。這不是必要路線。
 
-1. 點「部署」→「新增部署」。
-2. 類型選「網頁應用程式」。
-3. Execute as：選 `Me`。
-4. Who has access：選 `Anyone`。
-5. 部署後複製 Web app URL。
-6. 到 LINE Developers Console → Messaging API → Webhook settings。
-7. Webhook URL 貼上 Web app URL。
-8. 開啟 `Use webhook`。
-9. 點 `Verify` 測試。
+```bash
+npm install
+npx clasp login
+npx clasp create --type standalone --title "BPH Rich Menu"
+npx clasp push
+npx clasp open
+```
 
-Webhook 目前支援：
+如果你已經有 Apps Script 專案，改用：
 
-- `follow`：新好友加入時回覆歡迎訊息。
-- 使用者輸入 `menu`、`選單`、`rich menu`：回覆如何打開選單。
+```bash
+cp .clasp.json.example .clasp.json
+# 編輯 .clasp.json，填入既有 Apps Script ID
+npx clasp push
+```
 
-## 8. 驗收清單
+`.clasp.json` 應類似：
+
+```json
+{
+  "scriptId": "YOUR_SCRIPT_ID",
+  "rootDir": "src"
+}
+```
+
+## 6. Rich Menu 圖片來源
+
+正式圖片在 GitHub：
+
+```txt
+richmenu/bph-rich-menu-main-2500x1686.png
+```
+
+GitHub Actions 會在 `tools/generate_richmenu_art.py` 或 rich menu 設定異動時重新產圖。若需要手動產生，才使用：
+
+```bash
+python3 -m pip install pillow
+python3 tools/generate_richmenu_art.py
+```
+
+## 7. 驗收清單
 
 - [ ] LINE OA 加好友後，下方顯示 `Backpackers Hostel` chat bar。
 - [ ] 點開 rich menu 後六格清楚顯示。
@@ -183,7 +197,7 @@ Webhook 目前支援：
 - [ ] 點「線上訂房」會進入訂房系統。
 - [ ] 傳送 `menu` 或 `選單` 可收到 webhook 回覆。
 
-## 9. 常見錯誤
+## 8. 常見錯誤
 
 ### 400: The image size is not allowed for richmenu
 
