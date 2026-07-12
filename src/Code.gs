@@ -21,3 +21,11 @@ function setupbphrichmenu() {
 function setupBPHRichMenu() {
   return setupBphRichMenu();
 }
+
+function checkRichMenuImage() {
+  return checkBphRichMenuImage();
+}
+
+function checkrichmenuimage() {
+  return checkBphRichMenuImage();
+}
