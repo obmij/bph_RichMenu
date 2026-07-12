@@ -1,12 +1,13 @@
 # bph_RichMenu
 
-Backpackers Hostel / BPH 專用 LINE OA Rich Menu 與 Google Apps Script 部署 repo。
+Backpackers Hostel / BPH 專用 LINE OA Rich Menu、GitHub Actions 部署流程與 Google Apps Script 程式 repo。
 
-這個 repo 是 **GitHub 上的正式部署來源**。不是要你安裝一套本機測試環境；本機指令只作為備援。LINE OA 實際部署目標是：
+這個 repo 是 **GitHub 上的正式部署來源**。不是本機測試環境；正式部署目標是：
 
 1. LINE Developers / LINE Official Account
-2. Google Apps Script
-3. GitHub repo 內的 rich menu 圖與 Apps Script 程式
+2. GitHub Actions：直接部署 LINE rich menu
+3. Google Apps Script：選用 webhook / 輕量自動回覆
+4. GitHub repo 內的 rich menu 圖、area map 與 Apps Script 程式
 
 ## 本次整理重點
 
@@ -14,9 +15,9 @@ Backpackers Hostel / BPH 專用 LINE OA Rich Menu 與 Google Apps Script 部署 
 - 新增青年旅館風格 rich menu 產圖工具：`tools/generate_richmenu_art.py`。
 - 新增並已由 GitHub Actions 產生正式圖片：`richmenu/bph-rich-menu-main-2500x1686.png`。
 - 新增 6 格 tap area map：`richmenu/bph-rich-menu-area-map.json`。
-- 新增 Apps Script 一鍵部署函式：`setupBphRichMenu()`。
-- 新增 terminal/curl 部署腳本：`scripts/line-rich-menu-create.sh`，僅作備援。
-- 新增完整部署文件：`docs/DEPLOY_LINE_OA.md`。
+- 新增 **GitHub Actions 正式部署 workflow**：`.github/workflows/deploy-line-richmenu.yml`。
+- 新增 Apps Script 一鍵部署函式：`setupBphRichMenu()`，作為第二部署路線。
+- 新增完整部署文件：`docs/GITHUB_ACTIONS_DEPLOY.md`、`docs/DEPLOY_LINE_OA.md`。
 
 ## Rich Menu 六格
 
@@ -27,33 +28,38 @@ Backpackers Hostel / BPH 專用 LINE OA Rich Menu 與 Google Apps Script 部署 
 5. 聯絡我們
 6. 線上訂房
 
-## GitHub-first 部署方式
+## 首選：GitHub Actions 雲端部署
 
-到 Apps Script 建立專案後，把 `src/` 裡的 `.gs` 與 `appsscript.json` 放進 Apps Script，設定 Script Properties：
+在 GitHub repo 設定 Secret：
 
 ```txt
-LINE_CHANNEL_ACCESS_TOKEN=你的 Messaging API Channel access token
-LINE_CHANNEL_SECRET=你的 Channel secret
-BPH_RICH_MENU_IMAGE_URL=https://raw.githubusercontent.com/obmij/bph_RichMenu/main/richmenu/bph-rich-menu-main-2500x1686.png
+Settings → Secrets and variables → Actions → New repository secret
+Name: LINE_CHANNEL_ACCESS_TOKEN
+Value: LINE Developers Console 的 Messaging API Channel access token
 ```
 
-然後在 Apps Script 執行：
+然後執行：
+
+```txt
+Actions → Deploy BPH LINE Rich Menu → Run workflow
+dry_run=false
+set_default=true
+```
+
+workflow 會直接驗證 JSON、建立 rich menu、上傳 GitHub repo 內的 PNG、設成 LINE OA default rich menu，並建立 alias `bph-youth-hostel-2026`。
+
+完整步驟請看：[`docs/GITHUB_ACTIONS_DEPLOY.md`](docs/GITHUB_ACTIONS_DEPLOY.md)。
+
+## 第二路線：Google Apps Script
+
+若要把 webhook / 輕量回覆也放到 Apps Script，請看：[`docs/DEPLOY_LINE_OA.md`](docs/DEPLOY_LINE_OA.md)。
+
+Apps Script 的主要部署函式仍是：
 
 ```txt
 setupBphRichMenu
 ```
 
-完整步驟請看：[`docs/DEPLOY_LINE_OA.md`](docs/DEPLOY_LINE_OA.md)。
-
 ## 備援 CLI 指令
 
-只有當你要從 terminal 直接呼叫 LINE Messaging API 時才需要：
-
-```bash
-export LINE_CHANNEL_ACCESS_TOKEN='你的 Channel access token'
-bash scripts/line-rich-menu-create.sh \
-  richmenu/bph-rich-menu-area-map.json \
-  richmenu/bph-rich-menu-main-2500x1686.png
-```
-
-這不是本機測試環境；只是把 GitHub repo 內的 LINE rich menu JSON 與圖片上傳到 LINE OA。
+CLI 只作備援；正式部署請優先用 GitHub Actions。
