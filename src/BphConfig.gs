@@ -11,7 +11,8 @@ const BPH_SCRIPT_PROPERTIES = {
 const BPH_DEFAULTS = {
   richMenuImageUrl: 'https://raw.githubusercontent.com/obmij/bph_RichMenu/main/richmenu/bph-rich-menu-main-2500x1686.png',
   richMenuName: 'BPH Youth Hostel Rich Menu 2026',
-  chatBarText: 'Backpackers Hostel',
+  // LINE requires chatBarText to be no longer than 14 characters.
+  chatBarText: 'BPH Hostel',
   aliasId: 'bph-youth-hostel-2026'
 };
 
