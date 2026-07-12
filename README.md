@@ -2,7 +2,7 @@
 
 Backpackers Hostel / BPH 專用 LINE OA Rich Menu 與 Google Apps Script 部署 repo。
 
-這個 repo 是 **Google Apps Script / clasp 部署來源**。不要使用 GitHub Actions 部署；正式流程改為使用 Google `clasp` 指令將 `src/` 推送到 Apps Script，然後在 Apps Script 執行 `setupBphRichMenu()` 部署到 LINE OA。
+這個 repo 是 **Google Apps Script / clasp 部署來源**。不要使用 GitHub Actions 部署；正式流程改為使用 Google `clasp` 指令將 `src/` 推送到 Apps Script，然後用 Apps Script / clasp 執行 `setupBphRichMenu()` 部署到 LINE OA。
 
 ## 本次整理重點
 
