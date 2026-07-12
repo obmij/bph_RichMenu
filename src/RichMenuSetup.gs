@@ -1,10 +1,21 @@
 /**
  * Rich menu deployment commands.
- * Run setupBphRichMenu() from Apps Script editor after setting Script Properties.
+ * Run richMenuSetup() or setup() from Apps Script editor after setting Script Properties.
  */
 function validateBphRichMenu() {
   const body = getBphRichMenuObject_();
   return lineApiRequest_('/v2/bot/richmenu/validate', 'post', body);
+}
+
+function checkBphRichMenuImage() {
+  const image = prepareBphRichMenuImage_();
+  return {
+    ok: true,
+    bytes: image.byteLength,
+    maxBytes: LINE_RICH_MENU_MAX_IMAGE_BYTES,
+    contentType: image.contentType,
+    url: image.url
+  };
 }
 
 function createBphRichMenu_() {
@@ -14,13 +25,13 @@ function createBphRichMenu_() {
   return result.richMenuId;
 }
 
-function uploadBphRichMenuImage_(richMenuId) {
-  const imageBytes = downloadImageBytes_(getBphRichMenuImageUrl_());
+function uploadBphRichMenuImage_(richMenuId, preparedImage) {
+  const image = preparedImage || prepareBphRichMenuImage_();
   return lineApiRequest_(
     '/v2/bot/richmenu/' + richMenuId + '/content',
     'post',
-    imageBytes,
-    { dataApi: true, rawBytes: true, contentType: 'image/png' }
+    image.bytes,
+    { dataApi: true, rawBytes: true, contentType: image.contentType }
   );
 }
 
@@ -44,13 +55,28 @@ function upsertBphRichMenuAlias_(richMenuId) {
 
 function setupBphRichMenu() {
   validateBphRichMenu();
-  const richMenuId = createBphRichMenu_();
-  uploadBphRichMenuImage_(richMenuId);
-  setDefaultBphRichMenu_(richMenuId);
-  upsertBphRichMenuAlias_(richMenuId);
-  PropertiesService.getScriptProperties().setProperty('BPH_ACTIVE_RICH_MENU_ID', richMenuId);
-  Logger.log('BPH rich menu deployed: ' + richMenuId);
-  return richMenuId;
+  const image = prepareBphRichMenuImage_();
+  let richMenuId = null;
+
+  try {
+    richMenuId = createBphRichMenu_();
+    uploadBphRichMenuImage_(richMenuId, image);
+    setDefaultBphRichMenu_(richMenuId);
+    upsertBphRichMenuAlias_(richMenuId);
+    PropertiesService.getScriptProperties().setProperty('BPH_ACTIVE_RICH_MENU_ID', richMenuId);
+    Logger.log('BPH rich menu deployed: ' + richMenuId);
+    return richMenuId;
+  } catch (error) {
+    if (richMenuId) {
+      try {
+        deleteRichMenuById_(richMenuId);
+        Logger.log('Deleted incomplete rich menu after deployment failure: ' + richMenuId);
+      } catch (cleanupError) {
+        Logger.log('Failed to clean up incomplete rich menu ' + richMenuId + ': ' + cleanupError.message);
+      }
+    }
+    throw error;
+  }
 }
 
 function listBphRichMenus() {
@@ -74,7 +100,7 @@ function deleteAllRichMenusCreatedByApi() {
   const result = listBphRichMenus();
   const deleted = [];
   (result.richmenus || []).forEach(function(menu) {
-    lineApiRequest_('/v2/bot/richmenu/' + menu.richMenuId, 'delete');
+    deleteRichMenuById_(menu.richMenuId);
     deleted.push(menu.richMenuId);
   });
   Logger.log('Deleted rich menus: ' + JSON.stringify(deleted));
