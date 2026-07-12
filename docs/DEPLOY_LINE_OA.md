@@ -9,7 +9,7 @@
 ```txt
 bph_RichMenu/
 ├── src/                              # Google Apps Script 原始碼
-│   ├── appsscript.json
+│   ├── appsscript.json               # Apps Script manifest；不要在編輯器手動新增同名檔
 │   ├── Code.gs
 │   ├── BphConfig.gs
 │   ├── LineApi.gs
@@ -79,7 +79,7 @@ cp .clasp.json.example .clasp.json
 ## 4. 推送 Apps Script 程式
 
 ```bash
-npx clasp push
+npx clasp push --force
 npx clasp open
 ```
 
@@ -93,6 +93,8 @@ RichMenuSetup.gs
 Webhook.gs
 appsscript.json
 ```
+
+注意：`appsscript.json` 是 Apps Script manifest。不要在 Apps Script 編輯器用「新增檔案」手動建立 `appsscript`、`appsscrip` 或 `appsscript.json`，否則會出現同名檔衝突。
 
 ## 5. 設定 Script Properties
 
@@ -148,14 +150,14 @@ BPH rich menu deployed: richmenu-xxxxxxxxxxxxxxxx
 修改 `src/` 任何檔案後：
 
 ```bash
-npx clasp push
+npx clasp push --force
 npx clasp run setupBphRichMenu
 ```
 
 如果只改 webhook 內容、但不用重建 LINE rich menu，可以只 push：
 
 ```bash
-npx clasp push
+npx clasp push --force
 ```
 
 ## 9. 部署 Apps Script Web App Webhook
@@ -192,7 +194,7 @@ richmenu/bph-rich-menu-main-2500x1686.png
 ```bash
 python3 -m pip install pillow
 python3 tools/generate_richmenu_art.py
-npx clasp push
+npx clasp push --force
 ```
 
 ## 11. 驗收清單
@@ -228,6 +230,30 @@ bash scripts/line-rich-menu-delete-all.sh
 
 ## 13. 常見錯誤
 
+### A file with this name already exists in the current project: appsscrip / appsscript
+
+這代表 Apps Script 專案內已經存在 manifest 或同名檔。處理方式：
+
+1. 不要再新增 `appsscript` 或 `appsscript.json` 檔案。
+2. 到 Apps Script 編輯器左側「專案設定」。
+3. 勾選 `Show "appsscript.json" manifest file in editor`。
+4. 回到 Editor，確認只保留一個 `appsscript.json`。
+5. 如果你手動建立了 `appsscript` / `appsscrip` 這種普通 Script file，刪掉它；那不是 manifest。
+6. 回到 terminal 執行：
+
+```bash
+npx clasp push --force
+```
+
+若專案已經被手動檔案弄亂，最快方式是重新建立乾淨 Apps Script 專案：
+
+```bash
+rm -f .clasp.json
+npx clasp create --type standalone --title "BPH Rich Menu" --rootDir src
+npx clasp push --force
+npx clasp open
+```
+
 ### Apps Script API has not been used
 
 Google 帳號尚未啟用 Apps Script API。啟用後重新執行：
@@ -257,11 +283,3 @@ Apps Script 專案尚未設定 Script Properties，或 key 名稱拼錯。
 ### 400: An image has already been uploaded to the richmenu
 
 LINE 不允許替換同一個 rich menu 物件的圖片。請重新建立 rich menu，再上傳新圖片。
-
-### 401 Unauthorized
-
-`LINE_CHANNEL_ACCESS_TOKEN` 錯誤、過期或沒有貼完整。
-
-### 415 Unsupported Media Type
-
-上傳 PNG 時 header 必須是 `Content-Type: image/png`。上傳 JPEG 時改用 `Content-Type: image/jpeg`。
