@@ -1,0 +1,134 @@
+name: Deploy BPH LINE Rich Menu
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate only; do not create or set default rich menu'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      set_default:
+        description: 'Set created rich menu as default for all users'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+      RICH_MENU_JSON: richmenu/bph-rich-menu-area-map.json
+      RICH_MENU_IMAGE: richmenu/bph-rich-menu-main-2500x1686.png
+      ALIAS_ID: bph-youth-hostel-2026
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required files and secret
+        run: |
+          set -euo pipefail
+          test -n "$LINE_CHANNEL_ACCESS_TOKEN" || (echo 'Missing GitHub Actions secret: LINE_CHANNEL_ACCESS_TOKEN' >&2; exit 1)
+          test -f "$RICH_MENU_JSON" || (echo "Missing $RICH_MENU_JSON" >&2; exit 1)
+          test -f "$RICH_MENU_IMAGE" || (echo "Missing $RICH_MENU_IMAGE" >&2; exit 1)
+          BYTES=$(wc -c < "$RICH_MENU_IMAGE")
+          echo "Rich menu image bytes: $BYTES"
+          if [ "$BYTES" -gt 1048576 ]; then
+            echo 'Rich menu image must be smaller than 1 MB for LINE.' >&2
+            exit 1
+          fi
+
+      - name: Validate rich menu object
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST 'https://api.line.me/v2/bot/richmenu/validate' \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data-binary "@${RICH_MENU_JSON}"
+          echo 'LINE rich menu JSON validated.'
+
+      - name: Stop after validation when dry_run is true
+        if: ${{ inputs.dry_run == 'true' }}
+        run: |
+          echo 'Dry run completed. No rich menu was created.' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create rich menu
+        if: ${{ inputs.dry_run == 'false' }}
+        id: create
+        run: |
+          set -euo pipefail
+          RESPONSE=$(curl -fsS -X POST 'https://api.line.me/v2/bot/richmenu' \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            --data-binary "@${RICH_MENU_JSON}")
+          RICH_MENU_ID=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["richMenuId"])' <<< "$RESPONSE")
+          echo "rich_menu_id=${RICH_MENU_ID}" >> "$GITHUB_OUTPUT"
+          echo "Created rich menu: ${RICH_MENU_ID}"
+
+      - name: Upload rich menu image
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "https://api-data.line.me/v2/bot/richmenu/${{ steps.create.outputs.rich_menu_id }}/content" \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
+            -H 'Content-Type: image/png' \
+            --data-binary "@${RICH_MENU_IMAGE}"
+          echo 'Uploaded rich menu image.'
+
+      - name: Set default rich menu
+        if: ${{ inputs.dry_run == 'false' && inputs.set_default == 'true' }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "https://api.line.me/v2/bot/user/all/richmenu/${{ steps.create.outputs.rich_menu_id }}" \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}"
+          echo 'Set default rich menu.'
+
+      - name: Upsert rich menu alias
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          set -euo pipefail
+          RICH_MENU_ID='${{ steps.create.outputs.rich_menu_id }}'
+          BODY=$(python3 - <<PY
+import json
+print(json.dumps({"richMenuAliasId": "${ALIAS_ID}", "richMenuId": "${RICH_MENU_ID}"}))
+PY
+)
+          HTTP_CODE=$(curl -sS -o /tmp/alias_create.out -w '%{http_code}' -X POST 'https://api.line.me/v2/bot/richmenu/alias' \
+            -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "$BODY")
+          if [ "$HTTP_CODE" = '200' ]; then
+            echo 'Created rich menu alias.'
+          else
+            PATCH_BODY=$(python3 - <<PY
+import json
+print(json.dumps({"richMenuId": "${RICH_MENU_ID}"}))
+PY
+)
+            curl -fsS -X POST "https://api.line.me/v2/bot/richmenu/alias/${ALIAS_ID}" \
+              -H "Authorization: Bearer ${LINE_CHANNEL_ACCESS_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              -d "$PATCH_BODY"
+            echo 'Updated rich menu alias.'
+          fi
+
+      - name: Deployment summary
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          {
+            echo '## BPH LINE Rich Menu deployed'
+            echo ''
+            echo '- Rich menu ID: `${{ steps.create.outputs.rich_menu_id }}`'
+            echo '- Alias: `bph-youth-hostel-2026`'
+            echo '- Set as default: `${{ inputs.set_default }}`'
+            echo '- Image: `richmenu/bph-rich-menu-main-2500x1686.png`'
+          } >> "$GITHUB_STEP_SUMMARY"
