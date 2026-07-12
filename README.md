@@ -12,6 +12,7 @@ Backpackers Hostel / BPH 專用 LINE OA Rich Menu 與 Google Apps Script 部署 
 - 6 格 tap area map：`richmenu/bph-rich-menu-area-map.json`。
 - Apps Script 一鍵部署函式：`setupBphRichMenu()`。
 - 部署文件改為 Google clasp：`docs/DEPLOY_LINE_OA.md`。
+- GitHub Actions 部署文件與 workflow 已移除；不要再使用 Actions 部署 LINE OA。
 
 ## Rich Menu 六格
 
@@ -42,10 +43,10 @@ LINE_CHANNEL_SECRET=你的 Channel secret
 BPH_RICH_MENU_IMAGE_URL=https://raw.githubusercontent.com/obmij/bph_RichMenu/main/richmenu/bph-rich-menu-main-2500x1686.png
 ```
 
-然後在 Apps Script 執行：
+第一次先在 Apps Script 編輯器手動執行 `setupBphRichMenu` 完成授權；之後可用 clasp 執行：
 
-```txt
-setupBphRichMenu
+```bash
+npx clasp run setupBphRichMenu
 ```
 
 完整步驟請看：[`docs/DEPLOY_LINE_OA.md`](docs/DEPLOY_LINE_OA.md)。
